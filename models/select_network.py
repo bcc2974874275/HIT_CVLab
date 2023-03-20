@@ -34,8 +34,17 @@ def define_G(opt):
                    act_mode=opt_net['act_mode'])
     elif net_type == 'mdcun':
         from models.architecture.network_mdcun import pan_unfolding as net
-        netG = net(mid_channels=opt_net['mid_channels'],
+        netG = net(in_channels=opt_net['in_channels'],
+                   mid_channels=opt_net['mid_channels'],
+                   out_channels=opt_net['out_channels'],
                    T=opt_net['T'])
+    elif net_type == 'naf':
+        from models.architecture.network_naf import NAF as net
+        netG = net(in_channel=opt_net['in_channels'],
+                   dim=opt_net['dim'],
+                   out_channel=opt_net['out_channels'],
+                   scale=opt_net['scale'],
+                   block_num=opt_net['block_num'])
 
 
     # ----------------------------------------
@@ -49,11 +58,12 @@ def define_G(opt):
     # ----------------------------------------
     # initialize weights
     # ----------------------------------------
-    if opt['is_train']:
-        init_weights(netG,
-                     init_type=opt_net['init_type'],
-                     init_bn_type=opt_net['init_bn_type'],
-                     gain=opt_net['init_gain'])
+    
+    #if opt['is_train']:
+    #    init_weights(netG,
+    #                 init_type=opt_net['init_type'],
+    #                 init_bn_type=opt_net['init_bn_type'],
+    #                 gain=opt_net['init_gain'])
 
     return netG
 

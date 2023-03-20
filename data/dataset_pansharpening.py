@@ -12,10 +12,10 @@ class DatasetPansharpening(data.Dataset):
         # ------------------------------------
         # get paths of L/H
         # ------------------------------------
-        self.paths_gt = util.get_image_paths(opt['dataroot_gt'])
-        self.paths_ms = util.get_image_paths(opt['dataroot_ms'])
-        self.paths_lms = util.get_image_paths(opt['dataroot_lms'])
-        self.paths_pan = util.get_image_paths(opt['dataroot_pan'])
+        self.paths_gt = util.get_h5_paths(opt['dataroot_gt'])
+        self.paths_ms = util.get_h5_paths(opt['dataroot_ms'])
+        self.paths_lms = util.get_h5_paths(opt['dataroot_lms'])
+        self.paths_pan = util.get_h5_paths(opt['dataroot_pan'])
 
     def __getitem__(self, index):
         # ------------------------------------
@@ -26,7 +26,7 @@ class DatasetPansharpening(data.Dataset):
         img_gt = util.pansharpening2single(img_gt)
 
         ms_path = self.paths_ms[index]
-        img_ms = util.load_h5(gt_path, name='ms')
+        img_ms = util.load_h5(ms_path, name='ms')
         img_ms = util.pansharpening2single(img_ms)
 
         lms_path = self.paths_lms[index]
@@ -61,4 +61,4 @@ class DatasetPansharpening(data.Dataset):
                  'gt_path': gt_path, 'ms_path': ms_path, 'pan_path': pan_path, 'lms_path': lms_path}
 
     def __len__(self):
-        return len(self.paths_H)
+        return len(self.paths_pan)

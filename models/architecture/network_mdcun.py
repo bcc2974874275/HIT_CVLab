@@ -90,8 +90,8 @@ class blockNL(torch.nn.Module):
 
         g = self.g(x_fea)  # [b, 3, h, w]
         g_patches = F.unfold(g, self.fs, padding=self.fs // 2)  # [b, 3*fs*fs, hw]
-        g_patches = g_patches.view(b, 4, self.fs * self.fs, -1)  # [b, 3, fs*fs, hw]
-        g_patches = g_patches.view(b, 4, self.fs * self.fs, h, w)  # [b, 3, fs*fs, h, w]
+        g_patches = g_patches.view(b, self.channels, self.fs * self.fs, -1)  # [b, 3, fs*fs, hw]
+        g_patches = g_patches.view(b, self.channels, self.fs * self.fs, h, w)  # [b, 3, fs*fs, h, w]
         g_patches = g_patches.permute(0, 3, 4, 2, 1)  # .contiguous()#[b, h, w, fs*fs, 3]
         # print(g_patches.size())
 
@@ -309,30 +309,27 @@ class pan_unfolding(nn.Module):
         super().__init__()
 
         print("now: pan_unfolding_V4")
+        self.in_channels = in_channels
         self.up_factor = 4
         G0 = mid_channels
         kSize = 3
 
         self.conv_u = nn.ModuleList([nn.Sequential(*[
             nn.Conv2d(in_channels * (i + 1), 64, kSize, padding=(kSize - 1) // 2, stride=1),
-            nn.Conv2d(64, out_channels, kSize, padding=(kSize - 1) // 2, stride=1)
+            nn.Conv2d(64, in_channels, kSize, padding=(kSize - 1) // 2, stride=1)
         ]) for i in range(T)])
 
-        self.u = nn.ParameterList(
-            [nn.Parameter(torch.tensor(0.5)) for _ in range(T)])
-        self.eta = nn.ParameterList(
-            [nn.Parameter(torch.tensor(0.5)) for _ in range(T)])
-        self.gama = nn.ParameterList(
-            [nn.Parameter(torch.tensor(0.5)) for _ in range(T)])
-        self.delta = nn.ParameterList(
-            [nn.Parameter(torch.tensor(0.1)) for _ in range(T)])
+        self.u = nn.ParameterList(nn.Parameter(torch.tensor(0.5)) for _ in range(T))
+        self.eta = nn.ParameterList(nn.Parameter(torch.tensor(0.5)) for _ in range(T))
+        self.gama = nn.ParameterList(nn.Parameter(torch.tensor(0.5)) for _ in range(T))
+        self.delta = nn.ParameterList(nn.Parameter(torch.tensor(0.1)) for _ in range(T))
 
-        self.conv_up = Conv_up(out_channels, G0, self.up_factor)
-        self.conv_down = Conv_down(out_channels, G0, self.up_factor)
+        self.conv_up = Conv_up(in_channels, G0, self.up_factor)
+        self.conv_down = Conv_down(in_channels, G0, self.up_factor)
 
         self.rm1 = att_spatial(res_num=3)
 
-        self.NLBlock = blockNL(4, 15)
+        self.NLBlock = blockNL(in_channels, 15)
 
         self.hf_pan = nn.Conv2d(3, 1, 1, padding=0, stride=1)
 
@@ -366,15 +363,37 @@ class pan_unfolding(nn.Module):
                 uk = self.conv_u[i](x)  # B 4 256 256
 
             # denoising module
-            rm1_s2_0 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(uk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm1_s2_1 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(uk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm1_s2_2 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(uk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm1_s2_3 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(uk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            decode_u = torch.cat([rm1_s2_0, rm1_s2_1, rm1_s2_2, rm1_s2_3], 1)  # B 4 256 256
+            if self.in_channels == 4:
+                rm1_s2_0 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_1 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_2 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_3 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+
+                decode_u = torch.cat([rm1_s2_0, rm1_s2_1, rm1_s2_2, rm1_s2_3], 1)  # B 4 256 256
+            else:
+                rm1_s2_0 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_1 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_2 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_3 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_4 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 4, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_5 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 5, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_6 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 6, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm1_s2_7 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(uk[:, 7, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                decode_u = torch.cat([rm1_s2_0, rm1_s2_1, rm1_s2_2, rm1_s2_3,\
+                                      rm1_s2_4, rm1_s2_5, rm1_s2_6, rm1_s2_7], 1)  # B 4 256 256
+
 
             decode_u = decode_u + uk  # B 4 256 256
             uk_list.append(decode_u)
@@ -386,23 +405,45 @@ class pan_unfolding(nn.Module):
             else:
                 vk = self.conv_u[i](NL)  # B 4 256 256
             # denoising module
-            rm2_s2_0 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(vk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm2_s2_1 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(vk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm2_s2_2 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(vk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            rm2_s2_3 = pan_hp + self.rm1(
-                torch.cat([torch.unsqueeze(vk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
-            decode_v = torch.cat([rm2_s2_0, rm2_s2_1, rm2_s2_2, rm2_s2_3], 1)  # B 4 256 256
-
+            if self.in_channels == 4:
+                rm2_s2_0 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_1 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_2 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_3 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                decode_v = torch.cat([rm2_s2_0, rm2_s2_1, rm2_s2_2, rm2_s2_3], 1)  # B 4 256 256
+            else:
+                rm2_s2_0 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 0, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_1 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 1, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_2 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 2, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_3 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 3, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_4 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 4, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_5 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 5, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_6 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 6, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                rm2_s2_7 = pan_hp + self.rm1(
+                    torch.cat([torch.unsqueeze(vk[:, 7, :, :], 1), pan], 1)) * pan_hp  # B 1 256 256
+                decode_v = torch.cat([rm2_s2_0, rm2_s2_1, rm2_s2_2, rm2_s2_3,\
+                                      rm2_s2_4, rm2_s2_5, rm2_s2_6, rm2_s2_7], 1)  # B 4 256 256
             decode_v = decode_v + vk  # B 4 256 256
             vk_list.append(decode_v)
 
             # iteration
-            x = x - self.delta[i] * (
-                        self.conv_up(self.conv_down(x) - lms + self.u[i] * (self.conv_down(NL) - lms)) + self.eta[i] * (
-                            x - decode_u) + self.gama[i] * (NL - decode_v))
+
+            x = x - self.delta[i] * (self.conv_up(self.conv_down(x) - lms + self.u[i] * (self.conv_down(NL) - lms)) + \
+            self.eta[i] * (x - decode_u) + self.gama[i] * (NL - decode_v))
+
+            # x = x - self.delta * (self.conv_up(self.conv_down(x) - lms + self.u * (self.conv_down(NL) - lms)) + \
+            #                       (x - decode_u) + (NL - decode_v))
 
             outs_list.append(x)
 
@@ -415,13 +456,15 @@ class pan_unfolding(nn.Module):
             p.numel() for p in self.parameters() if p.requires_grad)
         print(f'{total_trainable_params:,} training parameters.')
 
-        input_ms = torch.rand(1, 4, 64, 64)
-        input_pan = torch.rand(1, 1, 256, 256)
+        input_ms = torch.rand(1, 4, 64, 64).cuda()
+        input_pan = torch.rand(1, 1, 256, 256).cuda()
 
-        import torchsummaryX
-        torchsummaryX.summary(self, input_ms.to(device), None, input_pan.to(device))
+        x = self.forward(input_ms, input_pan)
+        print(x.shape)
+        # import torchsummaryX
+        # torchsummaryX.summary(self, input_ms.to(device), None, input_pan.to(device))
 
 
 if __name__ == "__main__":
-    net = pan_unfolding(T=1)
+    net = pan_unfolding(in_channels=4, mid_channels=64, out_channels=4, T=4).cuda()
     net.test()

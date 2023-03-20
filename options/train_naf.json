@@ -1,7 +1,7 @@
 {
   "task": "pansharpening"  //  root/task/images-models-options
   , "model": "pansharpening"
-  , "gpu_ids": [4]
+  , "gpu_ids": [3,5,6,7]
   , "dist": true    //DDP
   , "scale": 4       // broadcast to "netG" if SISR
   , "n_channels": 4  // broadcast to "datasets", 1 for grayscale, 3 for color
@@ -18,31 +18,32 @@
     "train": {
       "name": "train_dataset"           // just name
       , "dataset_type": "pansharpening"
-      , "dataroot_gt": "/disk5/yw/hit_research-main/dataset/train_wv3/gt/"
-      , "dataroot_ms": "/disk5/yw/hit_research-main/dataset/train_wv3/ms/"
-      , "dataroot_lms": "/disk5/yw/hit_research-main/dataset/train_wv3/lms/"
-      , "dataroot_pan": "/disk5/yw/hit_research-main/dataset/train_wv3/pan/"
+      , "dataroot_gt": "/disk4/yw/hit_cvlab/dataset/train_wv3/gt/"
+      , "dataroot_ms": "/disk4/yw/hit_cvlab/dataset/train_wv3/ms/"
+      , "dataroot_lms": "/disk4/yw/hit_cvlab/dataset/train_wv3/lms/"
+      , "dataroot_pan": "/disk4/yw/hit_cvlab/dataset/train_wv3/pan/"
     
       , "dataloader_shuffle": true
       , "dataloader_num_workers": 64
-      , "dataloader_batch_size": 16     // batch size 1 | 16 | 32 | 48 | 64 | 128
+      , "dataloader_batch_size": 256     // batch size 1 | 16 | 32 | 48 | 64 | 128
     }
     , "test": {
       "name": "test_dataset"
       , "dataset_type": "pansharpening"
-      , "dataroot_gt": "/disk5/yw/hit_research-main/dataset/test_wv3/reduced_examples/gt/"
-      , "dataroot_ms": "/disk5/yw/hit_research-main/dataset/test_wv3/reduced_examples/ms/"
-      , "dataroot_lms": "/disk5/yw/hit_research-main/dataset/test_wv3/reduced_examples/lms/"
-      , "dataroot_pan": "/disk5/yw/hit_research-main/dataset/test_wv3/reduced_examples/pan/"
+      , "dataroot_gt": "/disk4/yw/hit_cvlab/dataset/test_wv3/reduced_examples/gt/"
+      , "dataroot_ms": "/disk4/yw/hit_cvlab/dataset/test_wv3/reduced_examples/ms/"
+      , "dataroot_lms": "/disk4/yw/hit_cvlab/dataset/test_wv3/reduced_examples/lms/"
+      , "dataroot_pan": "/disk4/yw/hit_cvlab/dataset/test_wv3/reduced_examples/pan/"
   }
   }
 
   , "netG": {
-    "net_type": "mdcun"
-  , "in_channels": 8
-  , "mid_channels": 64
-  , "out_channels": 8
-  , "T": 4
+    "net_type": "naf"
+    , "in_channels": 8
+    , "dim": 64
+    , "out_channels": 8
+    , "scale": 4
+    , "block_num": 16
 
     , "init_type": "orthogonal"         // "orthogonal" | "normal" | "uniform" | "xavier_normal" | "xavier_uniform" | "kaiming_normal" | "kaiming_uniform"
     , "init_bn_type": "uniform"         // "uniform" | "constant"
@@ -54,11 +55,11 @@
     , "G_lossfn_weight": 1.0            // default
 
     , "G_optimizer_type": "adam"        // fixed, adam is enough
-    , "G_optimizer_lr": 5e-4           // learning rate
+    , "G_optimizer_lr": 2e-4           // learning rate
     , "G_optimizer_clipgrad": null      // unused
 
     , "G_scheduler_type": "MultiStepLR" // "MultiStepLR" is enough
-    , "G_scheduler_milestones": [200000, 400000, 600000, 800000, 1000000, 2000000]
+    , "G_scheduler_milestones": [20000, 40000, 60000, 80000, 100000, 200000]
     , "G_scheduler_gamma": 0.5
 
     , "G_regularizer_orthstep": null    // unused

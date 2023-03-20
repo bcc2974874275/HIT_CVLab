@@ -3,8 +3,8 @@ import torch
 import torch.nn as nn
 from torch.optim import lr_scheduler
 from torch.optim import Adam, AdamW
-from lion import Lion
 
+from models.lion import Lion
 from models.select_network import define_G
 from models.model_base import ModelBase
 from models.loss import CharbonnierLoss
@@ -167,7 +167,7 @@ class ModelPansharpening(ModelBase):
     # ----------------------------------------
     def feed_data(self, data, need_H=True):
         self.ms = data['ms'].to(self.device)
-        self.pan = data['gt'].to(self.device)
+        self.pan = data['pan'].to(self.device)
 
         #if need_H:
         self.gt = data['gt'].to(self.device)
@@ -242,7 +242,7 @@ class ModelPansharpening(ModelBase):
         out_dict = OrderedDict()
         out_dict['pan'] = self.pan.detach()[0].float().cpu()
         out_dict['ms'] = self.ms.detach()[0].float().cpu()
-
+        out_dict['sr'] = self.sr.detach()[0].float().cpu()
         out_dict['gt'] = self.gt.detach()[0].float().cpu()
         return out_dict
 

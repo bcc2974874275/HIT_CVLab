@@ -28,8 +28,11 @@ IMG_EXTENSIONS = ['.jpg', '.JPG', '.jpeg', '.JPEG', '.png', '.PNG', '.ppm', '.PP
 
 
 def load_h5(path, name):
+    
     data = h5py.File(path)
+    
     data = data[name][:]
+    
     return data
 
 def pansharpening2single(img):
@@ -95,6 +98,31 @@ def _get_paths_from_images(path):
     assert images, '{:s} has no valid image file'.format(path)
     return images
 
+def get_h5_paths(dataroot):
+    paths = None  # return None if dataroot is None
+    if isinstance(dataroot, str):
+        paths = sorted(_get_paths_from_h5(dataroot))
+    elif isinstance(dataroot, list):
+        paths = []
+        for i in dataroot:
+            paths += sorted(_get_paths_from_h5(i))
+    return paths
+
+
+def _get_paths_from_h5(path):
+    assert os.path.isdir(path), '{:s} is not a valid directory'.format(path)
+    images = []
+    for dirpath, _, fnames in sorted(os.walk(path)):
+        for fname in sorted(fnames):
+            if is_h5_file(fname):
+                img_path = os.path.join(dirpath, fname)
+                images.append(img_path)
+    assert images, '{:s} has no valid image file'.format(path)
+    return images
+
+def is_h5_file(filename):
+    H5_EXTENSIONS = ['.h5', '.H5']
+    return any(filename.endswith(extension) for extension in H5_EXTENSIONS)
 
 '''
 # --------------------------------------------
